@@ -12,10 +12,11 @@ namespace Physics.Runtime
 
         [Range(1, 250)]
         public uint m_chainLinkNumber;
-        public float pourcentage;
         public GameObject m_linkPrefab;
         public GameObject candy;
         public GameObject fragments;
+        public HingeJoint2D connectToCandy;
+        public Vector3[] positions;
         #endregion
 
         #region Unity API
@@ -24,32 +25,50 @@ namespace Physics.Runtime
             CreateChain();
         }
 
-        /*
-            DistanceJoint2D distanceJoint2D = previousChainLink.AddComponent<DistanceJoint2D>();
-            distanceJoint2D.connectedBody = previousChainLink.GetComponent<HingeJoint2D>().connectedBody;
-            distanceJoint2D.maxDistanceOnly = true;
-            distanceJoint2D.distance = 1;
-        */
+        private void Update()
+        {
+            if(connectToCandy)
+            {
+                connectToCandy.gameObject.SetActive(candy != null);
+            }
+
+            positions = new Vector3[m_chainLinkNumber];
+            GetComponent<LineRenderer>().positionCount = (int)m_chainLinkNumber;
+            for (int i = 0; i < m_chainLinkNumber; i++)
+            {
+                positions[i] = fragments.transform.GetChild(i).transform.position;
+                GetComponent<LineRenderer>().SetPosition(i, fragments.transform.GetChild(i).transform.position);
+            }
+        }
 
         private void CreateChain()
         {
             if (m_linkPrefab == null) return;
             
-            var previousChainLink = Instantiate(m_linkPrefab, _offsetPosition, identity, transform);
+            var previousChainLink = Instantiate(m_linkPrefab, _offsetPosition, identity, fragments.transform);
+            previousChainLink.GetComponent<HingeJoint2D>().connectedAnchor = Vector2.zero;
             AttachToPreviousHinge(gameObject, previousChainLink);
             
             for (var i = 0; i < m_chainLinkNumber; i++)
             {
                 previousChainLink = AddNewChainLink(previousChainLink, i);
             }
-            HingeJoint2D hingeJoint2D = previousChainLink.AddComponent<HingeJoint2D>();
-            hingeJoint2D.autoConfigureConnectedAnchor = false;
-            previousChainLink.name = m_chainLinkNumber.ToString();
 
             if(candy)
             {
-                hingeJoint2D.connectedBody = candy.GetComponent<Rigidbody2D>();
+                AttacAtCandy(previousChainLink);
             }
+        }
+
+        public void AttacAtCandy(GameObject lastChainLink)
+        {
+            
+            HingeJoint2D hingeJoint2D = lastChainLink.AddComponent<HingeJoint2D>();
+            hingeJoint2D.autoConfigureConnectedAnchor = false;
+            lastChainLink.name = m_chainLinkNumber.ToString();
+            hingeJoint2D.connectedBody = candy.GetComponent<Rigidbody2D>();
+            hingeJoint2D.connectedAnchor = Vector3.zero;
+            connectToCandy = hingeJoint2D;
         }
 
         #endregion
@@ -69,7 +88,7 @@ namespace Physics.Runtime
         {
             previousChainLink.name = i.ToString();
             _offsetPosition.y -= 1.2f;
-            var chainLink = Instantiate(m_linkPrefab, _offsetPosition, identity, transform);
+            var chainLink = Instantiate(m_linkPrefab, _offsetPosition, identity, fragments.transform);
 
             AttachToPreviousHinge(previousChainLink, chainLink);
 
